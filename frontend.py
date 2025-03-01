@@ -1,33 +1,34 @@
 import streamlit as st
 import requests
 
-st.title("LangChain + Ollama Chat Demo")
+st.title("Chatbot")
 
-# Keep chat messages in session state
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
-def handle_input():
+def send_message():
     user_input = st.session_state.user_input
     if user_input:
-        # Send the user message to the backend
+        # Add user's message to conversation
+        st.session_state["messages"].append(("user", user_input))
+
+        # Send request to your FastAPI endpoint
         resp = requests.post(
-            "http://localhost:8000/chat",
-            json={"message": user_input},
-            timeout=60
+            "http://localhost:8001/api/v1/chat", 
+            json={"message": user_input}
         )
         data = resp.json()
 
-        # Store messages in session
-        st.session_state["messages"].append(("You", user_input))
-        st.session_state["messages"].append(("AI", data["response"]))
+        # Add assistant response
+        st.session_state["messages"].append(("assistant", data["response"]))
 
-        # Clear the text input
-        st.session_state.user_input = ""
+        # IMPORTANT: Don't do st.session_state["user_input"] = ""
+        # st.chat_input will auto-clear after submission.
 
-# A text_input with on_change triggers handle_input when user presses Enter
-st.text_input("Enter your message:", key="user_input", on_change=handle_input)
+# Display conversation
+for role, text in st.session_state["messages"]:
+    with st.chat_message(role):
+        st.write(text)
 
-# Display the chat
-for speaker, text in st.session_state["messages"]:
-    st.write(f"**{speaker}:** {text}")
+# Provide a chat-style input
+st.chat_input("Type your message...", key="user_input", on_submit=send_message)
